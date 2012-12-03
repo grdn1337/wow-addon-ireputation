@@ -5,7 +5,7 @@
 local AddonName, iReputation = ...;
 LibStub("AceEvent-3.0"):Embed(iReputation);
 
-local L = LibStub("AceLocale-3.0"):GetLocale(AddonName);
+--local L = LibStub("AceLocale-3.0"):GetLocale(AddonName);
 
 local _G = _G;
 local format = _G.string.format;
@@ -27,6 +27,28 @@ local COLOR_RED  = "|cffff0000%s|r";
 local COLOR_GREEN= "|cff00ff00%s|r";
 local COLOR_ATWAR= "|TInterface\\PVPFrame\\Icon-Combat:14:14|t |cffff0000%s|r";
 
+local function get_perc(earned, barMin, barMax, isFriendship)
+	local perc;
+	if( isFriendship ) then
+		perc = _G.math.min(earned / barMax * 100, 100);
+	else
+		perc = _G.math.min((earned - barMin) / (barMax - barMin) * 100, 100);
+	end
+	
+	if( perc >= 99.01 ) then
+		perc = 100;
+	end
+	return perc;
+end
+
+local function get_label(earned, barMin, barMax, isFriendship)
+	if( isFriendship ) then
+		return ("%d / %d"):format(earned, barMax);
+	else
+		return ("%d / %d"):format((earned - barMin), (barMax - barMin));
+	end
+end
+
 -----------------------------
 -- Setting up the LDB
 -----------------------------
@@ -34,6 +56,7 @@ local COLOR_ATWAR= "|TInterface\\PVPFrame\\Icon-Combat:14:14|t |cffff0000%s|r";
 iReputation.ldb = LibStub("LibDataBroker-1.1"):NewDataObject(AddonName, {
 	type = "data source",
 	text = AddonName,
+	icon = "Interface\\Addons\\iReputation\\Images\\iReputation",
 });
 
 iReputation.ldb.OnEnter = function(anchor)
@@ -56,7 +79,6 @@ iReputation.ldb.OnLeave = function() end -- some display addons refuse to displa
 
 function iReputation:Boot()
 	self.db = LibStub("AceDB-3.0"):New("iReputationDB", {realm={today="",chars={}}}, true).realm;
-	_G["DDB"]=self.db;
 	
 	if( not self.db.chars[CharName] ) then
 		self.db.chars[CharName] = {};
@@ -96,6 +118,11 @@ function iReputation:UpdateFactions()
 			end
 		end
 	end
+	
+	local standing, barMin, barMax;
+	name, standing, barMin, barMax, earned = _G.GetWatchedFactionInfo();
+	
+	self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
 
 	self:CheckTooltips("Main");
 end
@@ -122,10 +149,11 @@ function cell_prototype:InitializeCell()
 	
 	local fs = self:CreateFontString(nil, "OVERLAY");
 	self.fs = fs;
-	fs:SetAllPoints(self);
 	fs:SetFontObject(_G.GameTooltipText);
 	local font, size = fs:GetFont();
 	fs:SetFont(font, size - 1, "OUTLINE");
+	fs:SetAllPoints(self);
+	
 	self.r, self.g, self.b = 1, 1, 1;
 end
 
@@ -138,7 +166,11 @@ function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	bar:SetVertexColor(c.r, c.g, c.b);
 	bar:SetWidth(perc);
 	bar:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");
-	bar:Show();
+	if( perc == 0 ) then
+		bar:Hide();
+	else
+		bar:Show();
+	end
 	
 	fs:SetText(label);
 	fs:SetFontObject(font or tooltip:GetFont());
@@ -146,7 +178,7 @@ function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	fs:SetTextColor(1, 1, 1);
 	fs:Show();
 	
-	return bar:GetWidth() + 2, bar:GetHeight() + 2;
+	return self.bg:GetWidth(), bar:GetHeight() + 2;
 end
 
 function cell_prototype:ReleaseCell()
@@ -172,28 +204,38 @@ local function tooltipCollapseClick(_, info, button)
 end
 
 local oldText;
-local function tooltipOnEnter(self, info)
+local function tooltipStandingOnEnter(self, info)
 	oldText = self.fs:GetText();
 	self.fs:SetText(info);
 end
 
-local function tooltipOnLeave(self)
+local function tooltipStandingOnLeave(self)
 	self.fs:SetText(oldText);
 end
 
-local function get_perc(earned, barMin, barMax, isFriendship)
-	if( isFriendship ) then
-		return _G.math.min(earned / barMax * 100 ,100);
-	else
-		return _G.math.min((earned - barMin) / (barMax - barMin) * 100, 100);
-	end
-end
-
-local function get_label(earned, barMin, barMax, isFriendship)
-	if( isFriendship ) then
-		return ("%d / %d"):format(earned, barMax);
-	else
-		return ("%d / %d"):format((earned - barMin), (barMax - barMin));
+local function tooltipLineClick(self, factionIndex, button)
+	local name, _, _, _, _, _, _, canToggleAtWar, _, _, _, isWatched, _ = _G.GetFactionInfo(factionIndex);
+	local isInactive = _G.IsFactionInactive(factionIndex);
+	
+	-- left click
+	if( button == "LeftButton" ) then
+		-- no modifier
+		if( not _G.IsModifierKeyDown() ) then
+			_G.SetWatchedFactionIndex(isWatched and 0 or factionIndex);
+		else
+			-- shift + ctrl + left click
+			if( canToggleAtWar and _G.IsControlKeyDown() and _G.IsShiftKeyDown() ) then
+				_G.FactionToggleAtWar(factionIndex);
+				iReputation:CheckTooltips("Main");
+			end
+		end
+	-- right click
+	elseif( button == "RightButton" and _G.IsShiftKeyDown() ) then
+		if( isInactive ) then
+			_G.SetFactionActive(factionIndex);
+		else
+			_G.SetFactionInactive(factionIndex);
+		end
 	end
 end
 
@@ -204,7 +246,7 @@ function iReputation:UpdateTooltip(tip)
 	
 	local name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID;
 	local line, isFriendship;
-	local friendID, friendRep, friendMaxRep, friendText, friendTexture, friendTextLevel, friendThresh;
+	local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold;
 	
 	for i = 1, _G.GetNumFactions() do
 		name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID = _G.GetFactionInfo(i);
@@ -235,7 +277,10 @@ function iReputation:UpdateTooltip(tip)
 		end
 		
 		if( not isHeader or hasRep ) then
-			friendID, friendRep, friendMaxRep, friendText, friendTexture, friendTextLevel, friendThresh = _G.GetFriendshipReputationByID(factionID);
+		local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, 
+		friendTextLevel, friendThreshold, nextFriendThreshold = GetFriendshipReputation(factionID);
+		
+			friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
 			isFriendship = friendID ~= nil;
 			if( isFriendship ) then
 				barMax = min( friendMaxRep - friendThresh, 8400);
@@ -247,13 +292,15 @@ function iReputation:UpdateTooltip(tip)
 				get_perc(earned, barMin, barMax, isFriendship),
 				standing
 			}, cell_provider, 1, 0, 0);
-			tip:SetCellScript(line, 4, "OnEnter", tooltipOnEnter, get_label(earned, barMin, barMax, isFriendship));
-			tip:SetCellScript(line, 4, "OnLeave", tooltipOnLeave);
+			tip:SetCellScript(line, 4, "OnEnter", tooltipStandingOnEnter, get_label(earned, barMin, barMax, isFriendship));
+			tip:SetCellScript(line, 4, "OnLeave", tooltipStandingOnLeave);
+			tip:SetLineScript(line, "OnMouseDown", tooltipLineClick, i);
 			
 			local change = self.db.chars[CharName][tostring(factionID)].changed;
 			if( change ~= 0 ) then
 				tip:SetCell(line, 5, change > 0 and (COLOR_GREEN):format("+".._G.AbbreviateLargeNumbers(change)) or (COLOR_RED):format("-".._G.AbbreviateLargeNumbers(change)));
 			end
 		end
+		
 	end
 end
