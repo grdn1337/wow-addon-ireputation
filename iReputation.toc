@@ -1,6 +1,6 @@
 ## Interface: 50100
 ## Title: i|cffffffaaReputation|r
-## Version: 0.8.0
+## Version: 0.8.1
 ## Notes: The reputation display for your broker bar!
 ## Author: grdn
 ## SavedVariables: iReputationDB
