@@ -244,6 +244,13 @@ function iReputation:UpdateTooltip(tip)
 	tip:Clear();
 	tip:SetColumnLayout(5, "LEFT", "LEFT", "LEFT", "LEFT", "LEFT");
 	
+	-- check for addon updates
+	if( LibStub("iLib"):IsUpdate(AddonName) ) then
+		line = tip:AddHeader(" ");
+		tip:SetCell(line, 1, "|cffff0000Addon Update available!|r", nil, "CENTER", 0);
+	end
+	--------------------------
+	
 	local name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID;
 	local line, isFriendship;
 	local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold;
