@@ -214,7 +214,11 @@ local function tooltipStandingOnLeave(self)
 end
 
 local function tooltipLineClick(self, factionIndex, button)
-	local name, _, _, _, _, _, _, canToggleAtWar, _, _, _, isWatched, _ = _G.GetFactionInfo(factionIndex);
+	-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14
+	-- name, desc, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID
+	
+	--    1     2  3  4  5  6  7  8               9  10 11 12         13 14
+	local name, _, _, _, _, _, _, canToggleAtWar, _, _, _, isWatched, _, _, = _G.GetFactionInfo(factionIndex);
 	local isInactive = _G.IsFactionInactive(factionIndex);
 	
 	-- left click
