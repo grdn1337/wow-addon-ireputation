@@ -25,7 +25,12 @@ local CharName = _G.GetUnitName("player", false); -- The charname doesn't change
 local COLOR_GOLD = "|cfffed100%s|r";
 local COLOR_RED  = "|cffff0000%s|r";
 local COLOR_GREEN= "|cff00ff00%s|r";
+
 local COLOR_ATWAR= "|TInterface\\PVPFrame\\Icon-Combat:14:14|t |cffff0000%s|r";
+
+local BONUSREP_POSSIBLE = "|TInterface\\Common\\ReputationStar:14:14:0:0:32:32:17:32:1:16|t %s";
+local BONUSREP_ACTIVE = "|TInterface\\Common\\ReputationStar:14:14:0:0:32:32:1:16:1:16|t %s";
+local BONUSREP_ACCOUNT = "|TInterface\\Common\\ReputationStar:14:14:0:0:32:32:17:32:17:32|t %s";
 
 local function get_perc(earned, barMin, barMax, isFriendship)
 	local perc;
@@ -134,7 +139,7 @@ end
 local cell_provider, cell_prototype = LibStub("LibQTip-1.0"):CreateCellProvider();
 
 function cell_prototype:InitializeCell()
-	local bar = self:CreateTexture(nil, "OVERLAY", self);
+	local bar = self:CreateTexture(nil, "ARTWORK", self);
 	self.bar = bar;
 	bar:SetWidth(100);
 	bar:SetHeight(14);
@@ -154,14 +159,28 @@ function cell_prototype:InitializeCell()
 	fs:SetFont(font, size - 1, "OUTLINE");
 	fs:SetAllPoints(self);
 	
+	local bonusRep = self:CreateTexture(nil, "OVERLAY");
+	self.bonusRep = bonusRep;
+	bonusRep:SetWidth(16);
+	bonusRep:SetHeight(16);
+	bonusRep:SetTexture("Interface\\Common\\ReputationStar");
+	bonusRep:SetTexCoord(0.5, 1, 0.5, 1);
+	bonusRep:SetPoint("CENTER", bg, "LEFT", 2, 0);
+	
 	self.r, self.g, self.b = 1, 1, 1;
 end
 
 function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	local bar = self.bar;
 	local fs = self.fs;
-	local label, perc, standing = unpack(data);
-	local c = _G.FACTION_BAR_COLORS[standing];
+	local label, perc, standing, hasBonusRepGain = unpack(data);
+	local c = _G.FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
+	
+	if( hasBonusRepGain ) then
+		self.bonusRep:Show();
+	else
+		self.bonusRep:Hide();
+	end
 	
 	bar:SetVertexColor(c.r, c.g, c.b);
 	bar:SetWidth(perc);
@@ -214,11 +233,11 @@ local function tooltipStandingOnLeave(self)
 end
 
 local function tooltipLineClick(self, factionIndex, button)
-	-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14
-	-- name, desc, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID
+	-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14         15               16
+	-- name, desc, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus
 	
 	--    1     2  3  4  5  6  7  8               9  10 11 12         13 14
-	local name, _, _, _, _, _, _, canToggleAtWar, _, _, _, isWatched, _, _ = _G.GetFactionInfo(factionIndex);
+	local name, _, _, _, _, _, _, canToggleAtWar, _, _, _, isWatched, _, _, hasBonusRepGain, canBeLFGBonus = _G.GetFactionInfo(factionIndex);
 	local isInactive = _G.IsFactionInactive(factionIndex);
 	
 	-- left click
@@ -255,12 +274,16 @@ function iReputation:UpdateTooltip(tip)
 	end
 	--------------------------
 	
-	local name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID;
+	local name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus;
 	local line, isFriendship;
 	local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold;
 	
+	local lfgBonusFactionID = _G.GetLFGBonusFactionID();
+	
 	for i = 1, _G.GetNumFactions() do
-		name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID = _G.GetFactionInfo(i);
+		-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14         15               16
+		-- name, desc, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus
+		name, desc, standing, barMin, barMax, earned, atWar, canAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus = _G.GetFactionInfo(i);
 		
 		if( isHeader and i > 1  and not isChild ) then
 			tip:AddSeparator();
@@ -270,6 +293,14 @@ function iReputation:UpdateTooltip(tip)
 		if( isWatched ) then
 			name = "|TInterface\\RAIDFRAME\\ReadyCheck-Ready:14:14|t "..name;
 		end
+		
+		-- reformat faction name for LFG bonus
+		if( factionID == lfgBonusFactionID ) then
+			name = (BONUSREP_ACTIVE):format(name);
+		elseif( canBeLFGBonus ) then
+			name = (BONUSREP_POSSIBLE):format(name);
+		end
+		--
 		
 		if( isHeader ) then
 			isInChild = isChild;		
@@ -284,12 +315,12 @@ function iReputation:UpdateTooltip(tip)
 				tip:SetCellScript(line, 1, "OnMouseDown", tooltipCollapseClick, {i, isCollapsed});
 			end
 		else
-			tip:SetCell(line, 3, (atWar and COLOR_ATWAR or "%s"):format(name), nil, nil, nil, nil, nil, nil, 150);
+			tip:SetCell(line, 3, (atWar and COLOR_ATWAR or "%s"):format(name));
 		end
 		
 		if( not isHeader or hasRep ) then
-		local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, 
-		friendTextLevel, friendThreshold, nextFriendThreshold = GetFriendshipReputation(factionID);
+			local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, 
+			friendTextLevel, friendThreshold, nextFriendThreshold = GetFriendshipReputation(factionID);
 		
 			friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
 			isFriendship = friendID ~= nil;
@@ -301,7 +332,8 @@ function iReputation:UpdateTooltip(tip)
 			tip:SetCell(line, 4, {
 				(isFriendship and friendTextLevel or _G["FACTION_STANDING_LABEL"..standing]),
 				get_perc(earned, barMin, barMax, isFriendship),
-				standing
+				standing,
+				hasBonusRepGain
 			}, cell_provider, 1, 0, 0);
 			tip:SetCellScript(line, 4, "OnEnter", tooltipStandingOnEnter, get_label(earned, barMin, barMax, isFriendship));
 			tip:SetCellScript(line, 4, "OnLeave", tooltipStandingOnLeave);
