@@ -128,7 +128,7 @@ function iReputation:UpdateFactions()
 	name, standing, barMin, barMax, earned = _G.GetWatchedFactionInfo();
 	
 	--self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
-	self.ldb.text = get_label(earned, barMin, barMax, false) or AddonName;
+	self.ldb.text = get_label(earned, barMin, barMax, false) or "";
 
 	self:CheckTooltips("Main");
 end
