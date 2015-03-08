@@ -48,9 +48,9 @@ end
 
 local function get_label(earned, barMin, barMax, isFriendship)
 	if( isFriendship ) then
-		return ("%d / %d"):format(earned, barMax);
+		return ("%s / %s"):format(_G.BreakUpLargeNumbers(earned), _G.BreakUpLargeNumbers(barMax));
 	else
-		return ("%d / %d"):format((earned - barMin), (barMax - barMin));
+		return ("%s / %s"):format(_G.BreakUpLargeNumbers(earned - barMin), _G.BreakUpLargeNumbers(barMax - barMin));
 	end
 end
 
@@ -127,7 +127,8 @@ function iReputation:UpdateFactions()
 	local standing, barMin, barMax;
 	name, standing, barMin, barMax, earned = _G.GetWatchedFactionInfo();
 	
-	self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
+	--self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
+	self.ldb.text = get_label(earned, barMin, barMax, false) or AddonName;
 
 	self:CheckTooltips("Main");
 end
