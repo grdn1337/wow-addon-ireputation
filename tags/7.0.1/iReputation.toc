@@ -1,0 +1,24 @@
+## Interface: 70000
+## Title: i|cffffffaaReputation|r
+## Version: 7.0.1
+## Notes: The reputation display for your broker bar!
+## Author: grdn
+## SavedVariables: iReputationDB
+## OptionalDeps: Ace3, iLib
+
+# Libraries
+Libs\LibStub\Libstub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\libdatabroker-1-1\LibDataBroker-1.1.lua
+
+Libs\iLib\lib.xml
+
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+Libs\AceLocale-3.0\AceLocale-3.0.xml
+
+# Locales
+Locales\Locales.xml
+
+# Main
+iReputation.lua
