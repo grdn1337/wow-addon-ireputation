@@ -125,10 +125,39 @@ function iReputation:UpdateFactions()
 	end
 	
 	local standing, barMin, barMax;
-	name, standing, barMin, barMax, earned = _G.GetWatchedFactionInfo();
+	name, standing, barMin, barMax, earned, factionID = _G.GetWatchedFactionInfo();
+	
+	-- check for paragon
+	local isParagon = false;
+	if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
+		local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);		
+		if( not tooLowLevelForParagon ) then
+			barMin = 0;
+			barMax = threshold;
+			earned = currentValue;
+			isParagon = true;
+		end
+	end
+	
+	-- check for cap
+	local isCapped;
+	if (standing == _G.MAX_REPUTATION_REACTION and not (isParagon and earned < barMax)) then
+		isCapped = true;
+	end
+	
+	local friendID, friendRep, _, _, _, _, _, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
+	isFriendship = friendID ~= nil;
+	if( isFriendship ) then
+		if( nextFriendThreshold ) then
+			barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
+			isCapped = false;
+		else
+			isCapped = true;
+		end
+	end
 	
 	--self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
-	self.ldb.text = get_label(earned, barMin, barMax, false) or "";
+	self.ldb.text = not name and "" or isCapped and get_label(barMax, barMin, barMax, false) or get_label(earned, barMin, barMax, false);
 
 	self:CheckTooltips("Main");
 end
@@ -150,14 +179,14 @@ function cell_prototype:InitializeCell()
 	self.bg = bg;
 	bg:SetWidth(102);
 	bg:SetHeight(16);
-	bg:SetTexture(0, 0, 0, 0.5);
+	bg:SetColorTexture(0, 0, 0, 0.5);
 	bg:SetPoint("LEFT", self);
 	
 	local fs = self:CreateFontString(nil, "OVERLAY");
 	self.fs = fs;
 	fs:SetFontObject(_G.GameTooltipText);
 	local font, size = fs:GetFont();
-	fs:SetFont(font, size - 1, "OUTLINE");
+	fs:SetFont(font, size, "OUTLINE");
 	fs:SetAllPoints(self);
 	
 	local bonusRep = self:CreateTexture(nil, "OVERLAY");
@@ -168,19 +197,32 @@ function cell_prototype:InitializeCell()
 	bonusRep:SetTexCoord(0.5, 1, 0.5, 1);
 	bonusRep:SetPoint("CENTER", bg, "LEFT", 2, 0);
 	
+	local paragonRep = self:CreateTexture(nil, "OVERLAY");
+	self.paragonRep = paragonRep;
+	paragonRep:SetWidth(16);
+	paragonRep:SetHeight(16);
+	paragonRep:SetAtlas("ParagonReputation_Bag");
+	paragonRep:SetPoint("CENTER", bg, "RIGHT", 2, 0);
+	
 	self.r, self.g, self.b = 1, 1, 1;
 end
 
 function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	local bar = self.bar;
 	local fs = self.fs;
-	local label, perc, standing, hasBonusRepGain = unpack(data);
+	local label, perc, standing, hasBonusRepGain, isParagon = unpack(data);
 	local c = _G.FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
 	
 	if( hasBonusRepGain ) then
 		self.bonusRep:Show();
 	else
 		self.bonusRep:Hide();
+	end
+	
+	if( isParagon ) then
+		self.paragonRep:Show();
+	else
+		self.paragonRep:Hide();
 	end
 	
 	bar:SetVertexColor(c.r, c.g, c.b);
@@ -281,6 +323,110 @@ function iReputation:UpdateTooltip(tip)
 	
 	local lfgBonusFactionID = _G.GetLFGBonusFactionID();
 	
+	--[[
+	local numFactions = GetNumFactions();
+
+	-- Update scroll frame
+	if ( not FauxScrollFrame_Update(ReputationListScrollFrame, numFactions, NUM_FACTIONS_DISPLAYED, REPUTATIONFRAME_FACTIONHEIGHT ) ) then
+		ReputationListScrollFrameScrollBar:SetValue(0);
+	end
+	local factionOffset = FauxScrollFrame_GetOffset(ReputationListScrollFrame);
+
+	local gender = UnitSex("player");
+	local lfgBonusFactionID = GetLFGBonusFactionID();
+	
+	for i=1, NUM_FACTIONS_DISPLAYED, 1 do
+		local factionIndex = factionOffset + i;
+		local factionRow = _G["ReputationBar"..i];
+		local factionBar = _G["ReputationBar"..i.."ReputationBar"];
+		local factionTitle = _G["ReputationBar"..i.."FactionName"];
+		local factionButton = _G["ReputationBar"..i.."ExpandOrCollapseButton"];
+		local factionStanding = _G["ReputationBar"..i.."ReputationBarFactionStanding"];
+		local factionBackground = _G["ReputationBar"..i.."Background"];
+		if ( factionIndex <= numFactions ) then
+			local name, description, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus = GetFactionInfo(factionIndex);
+			factionTitle:SetText(name);
+			if ( isCollapsed ) then
+				factionButton:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up");
+			else
+				factionButton:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up"); 
+			end
+			factionRow.index = factionIndex;
+			factionRow.isCollapsed = isCollapsed;
+
+			local colorIndex = standingID;
+			local factionStandingtext;
+
+			if ( factionID and C_Reputation.IsFactionParagon(factionID) ) then
+				local paragonFrame = ReputationFrame.paragonFramesPool:Acquire();
+				paragonFrame.factionID = factionID;
+				paragonFrame:SetPoint("RIGHT", factionRow, 11, 0);
+				local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
+				C_Reputation.RequestFactionParagonPreloadRewardData(factionID);
+				paragonFrame.Glow:SetShown(not tooLowLevelForParagon and hasRewardPending);
+				paragonFrame.Check:SetShown(not tooLowLevelForParagon and hasRewardPending);
+				paragonFrame:Show();
+			end
+			local isCapped;
+			if (standingID == MAX_REPUTATION_REACTION) then
+				isCapped = true;
+			end
+			-- check if this is a friendship faction 
+			local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThreshold, nextFriendThreshold = GetFriendshipReputation(factionID);
+			if (friendID ~= nil) then
+				factionStandingtext = friendTextLevel;
+				if ( nextFriendThreshold ) then
+					barMin, barMax, barValue = friendThreshold, nextFriendThreshold, friendRep;
+				else
+					-- max rank, make it look like a full bar
+					barMin, barMax, barValue = 0, 1, 1;
+					isCapped = true;
+				end
+				colorIndex = 5;								-- always color friendships green
+				factionRow.friendshipID = friendID;			-- for doing friendship tooltip
+			else
+				factionStandingtext = GetText("FACTION_STANDING_LABEL"..standingID, gender);
+				factionRow.friendshipID = nil;
+			end
+
+			factionStanding:SetText(factionStandingtext);
+
+			--Normalize Values
+			barMax = barMax - barMin;
+			barValue = barValue - barMin;
+			barMin = 0;
+
+			factionRow.standingText = factionStandingtext;
+			if ( isCapped ) then
+				factionRow.rolloverText = nil;
+			else
+				factionRow.rolloverText = HIGHLIGHT_FONT_COLOR_CODE.." "..format(REPUTATION_PROGRESS_FORMAT, BreakUpLargeNumbers(barValue), BreakUpLargeNumbers(barMax))..FONT_COLOR_CODE_CLOSE;
+			end
+			factionBar:SetFillStyle("STANDARD_NO_RANGE_FILL");
+			factionBar:SetMinMaxValues(0, barMax);
+			factionBar:SetValue(barValue);
+			local color = FACTION_BAR_COLORS[colorIndex];
+			factionBar:SetStatusBarColor(color.r, color.g, color.b);
+			
+			factionBar.BonusIcon:SetShown(hasBonusRepGain);
+
+			factionRow.LFGBonusRepButton.factionID = factionID;
+			factionRow.LFGBonusRepButton:SetShown(canBeLFGBonus);
+			factionRow.LFGBonusRepButton:SetChecked(lfgBonusFactionID == factionID);
+			factionRow.LFGBonusRepButton:SetEnabled(lfgBonusFactionID ~= factionID);
+			if ( showLFGPulse and not SHOWED_LFG_PULSE and not lfgBonusFactionID ) then
+				factionRow.LFGBonusRepButton.Glow:Show();
+				factionRow.LFGBonusRepButton.GlowAnim:Play();
+			else
+				factionRow.LFGBonusRepButton.Glow:Hide();
+				factionRow.LFGBonusRepButton.GlowAnim:Stop();
+			end
+
+			ReputationFrame_SetRowType(factionRow, isChild, isHeader, hasRep);
+			
+			factionRow:Show();
+	--]]
+	
 	for i = 1, _G.GetNumFactions() do
 		-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14         15               16
 		-- name, desc, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canBeLFGBonus
@@ -320,29 +466,57 @@ function iReputation:UpdateTooltip(tip)
 		end
 		
 		if( not isHeader or hasRep ) then
-			local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, 
-			friendTextLevel, friendThreshold, nextFriendThreshold = GetFriendshipReputation(factionID);
-		
-			friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
-			isFriendship = friendID ~= nil;
-			if( isFriendship ) then
-				barMax = min( friendMaxRep - friendThresh, 8400);
-				earned = friendRep - friendThresh;
+			-- check for Paragon
+			local isParagon = false;
+			if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
+				local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
+				
+				if( not tooLowLevelForParagon ) then
+					barMin = 0;
+					barMax = threshold;
+					earned = currentValue;
+					isParagon = true;
+				end
 			end
 			
+			-- check for cap
+			local isCapped;
+			if (standing == _G.MAX_REPUTATION_REACTION and not (isParagon and earned < barMax)) then
+				isCapped = true;
+			end
+			
+			-- check for friendship
+			local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
+			isFriendship = friendID ~= nil;
+			if( isFriendship ) then
+				if( nextFriendThreshold ) then
+					barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
+					isCapped = false;
+				else
+					barMin, barMax, earned = 0, 1, 1;
+					isCapped = true;
+				end
+			end
+			
+			-- setup cell
 			tip:SetCell(line, 4, {
 				(isFriendship and friendTextLevel or _G["FACTION_STANDING_LABEL"..standing]),
 				get_perc(earned, barMin, barMax, isFriendship),
 				standing,
-				hasBonusRepGain
+				hasBonusRepGain,
+				isParagon
 			}, cell_provider, 1, 0, 0);
-			tip:SetCellScript(line, 4, "OnEnter", tooltipStandingOnEnter, get_label(earned, barMin, barMax, isFriendship));
-			tip:SetCellScript(line, 4, "OnLeave", tooltipStandingOnLeave);
+			
+			if( not isCapped ) then
+				tip:SetCellScript(line, 4, "OnEnter", tooltipStandingOnEnter, get_label(earned, barMin, barMax, isFriendship));
+				tip:SetCellScript(line, 4, "OnLeave", tooltipStandingOnLeave);
+			end
+			
 			tip:SetLineScript(line, "OnMouseDown", tooltipLineClick, i);
 			
 			local change = self.db.chars[CharName][tostring(factionID)].changed;
 			if( change ~= 0 ) then
-				tip:SetCell(line, 5, change > 0 and (COLOR_GREEN):format("+".._G.AbbreviateLargeNumbers(change)) or (COLOR_RED):format("-".._G.AbbreviateLargeNumbers(change)));
+				tip:SetCell(line, 5, change > 0 and (COLOR_GREEN.." "):format("+".._G.AbbreviateLargeNumbers(change)) or (COLOR_RED.." "):format(_G.AbbreviateLargeNumbers(change)));
 			end
 		end
 		
