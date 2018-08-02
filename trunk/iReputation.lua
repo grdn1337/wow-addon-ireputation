@@ -10,6 +10,17 @@ LibStub("AceEvent-3.0"):Embed(iReputation);
 local _G = _G;
 local format = _G.string.format;
 
+local FACTION_BAR_COLORS = {
+	[1] = {r = 0.63, g = 0, b = 0},
+	[2] = {r = 0.63, g = 0, b = 0},
+	[3] = {r = 0.63, g = 0, b = 0},
+	[4] = {r = 0.82, g = 0.67, b = 0},
+	[5] = {r = 0.32, g = 0.67, b = 0},
+	[6] = {r = 0.32, g = 0.67, b = 0},
+	[7] = {r = 0.32, g = 0.67, b = 0},
+	[8] = {r = 0, g = 0.75, b = 0.44},
+};
+
 -------------------------------
 -- Registering with iLib
 -------------------------------
@@ -211,7 +222,7 @@ function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	local bar = self.bar;
 	local fs = self.fs;
 	local label, perc, standing, hasBonusRepGain, isParagon = unpack(data);
-	local c = _G.FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
+	local c = FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
 	
 	if( hasBonusRepGain ) then
 		self.bonusRep:Show();
