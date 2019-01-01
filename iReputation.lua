@@ -141,7 +141,13 @@ function iReputation:UpdateFactions()
 	-- check for paragon
 	local isParagon = false;
 	if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
-		local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);		
+		local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
+
+		-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
+		if( currentValue > threshold and threshold > 0 ) then
+			currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
+		end
+
 		if( not tooLowLevelForParagon ) then
 			barMin = 0;
 			barMax = threshold;
@@ -378,6 +384,11 @@ function iReputation:UpdateTooltip(tip)
 			if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
 				local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
 				
+				-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
+				if( currentValue > threshold and threshold > 0 ) then
+					currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
+				end
+
 				if( not tooLowLevelForParagon ) then
 					barMin = 0;
 					barMax = threshold;
