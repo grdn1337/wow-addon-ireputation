@@ -257,7 +257,7 @@ function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	fs:SetTextColor(1, 1, 1);
 	fs:Show();
 	
-	return self.bg:GetWidth(), bar:GetHeight() + 2;
+	return self.bg:GetWidth() + 14, bar:GetHeight() + 2; -- add 14 to width in order to prevent Paragon image to be cut off by tooltip borders
 end
 
 function cell_prototype:ReleaseCell()
@@ -432,6 +432,7 @@ function iReputation:UpdateTooltip(tip)
 			
 			tip:SetLineScript(line, "OnMouseDown", tooltipLineClick, i);
 			
+			-- write changed reputation value
 			local change = self.db.chars[CharName][tostring(factionID)].changed;
 			if( change ~= 0 ) then
 				tip:SetCell(line, 5, change > 0 and (COLOR_GREEN.." "):format("+".._G.AbbreviateLargeNumbers(change)) or (COLOR_RED.." "):format(_G.AbbreviateLargeNumbers(change)));
