@@ -204,7 +204,7 @@ function cell_prototype:InitializeCell()
 	fs:SetFontObject(_G.GameTooltipText);
 	local font, size = fs:GetFont();
 	fs:SetFont(font, size, "OUTLINE");
-	fs:SetAllPoints(self);
+	fs:SetAllPoints(bg);
 	
 	local bonusRep = self:CreateTexture(nil, "OVERLAY");
 	self.bonusRep = bonusRep;
@@ -214,12 +214,19 @@ function cell_prototype:InitializeCell()
 	bonusRep:SetTexCoord(0.5, 1, 0.5, 1);
 	bonusRep:SetPoint("CENTER", bg, "LEFT", 2, 0);
 	
-	local paragonRep = self:CreateTexture(nil, "OVERLAY");
-	self.paragonRep = paragonRep;
-	paragonRep:SetWidth(16);
-	paragonRep:SetHeight(16);
-	paragonRep:SetAtlas("ParagonReputation_Bag");
-	paragonRep:SetPoint("CENTER", bg, "RIGHT", 2, 0);
+	local paragonBag = self:CreateTexture(nil, "ARTWORK");
+	self.paragonBag = paragonBag;
+	paragonBag:SetWidth(16);
+	paragonBag:SetHeight(16);
+	paragonBag:SetAtlas("ParagonReputation_Bag");
+	paragonBag:SetPoint("CENTER", bg, "RIGHT", 2, 0);
+
+	local paragonGlow = self:CreateTexture(nil, "BACKGROUND");
+	self.paragonGlow = paragonGlow;
+	paragonGlow:SetWidth(34);
+	paragonGlow:SetHeight(34);
+	paragonGlow:SetAtlas("ParagonReputation_Glow");
+	paragonGlow:SetPoint("CENTER", paragonBag, "CENTER", -1, -1);
 	
 	self.r, self.g, self.b = 1, 1, 1;
 end
@@ -227,29 +234,23 @@ end
 function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
 	local bar = self.bar;
 	local fs = self.fs;
-	local label, perc, standing, hasBonusRepGain, isParagon = unpack(data);
+	local label, perc, standing, hasBonusRepGain, isParagon, isParagonGlow = unpack(data);
 	local c = FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
 	
-	if( hasBonusRepGain ) then
-		self.bonusRep:Show();
-	else
-		self.bonusRep:Hide();
-	end
+	self.bonusRep:SetShown(hasBonusRepGain);
 	
 	if( isParagon ) then
-		self.paragonRep:Show();
+		self.paragonBag:Show();
+		self.paragonGlow:SetShown(isParagonGlow);
 	else
-		self.paragonRep:Hide();
+		self.paragonBag:Hide();
+		self.paragonGlow:Hide();
 	end
 	
 	bar:SetVertexColor(c.r, c.g, c.b);
 	bar:SetWidth(perc);
 	bar:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");
-	if( perc == 0 ) then
-		bar:Hide();
-	else
-		bar:Show();
-	end
+	bar:SetShown(perc ~= 0);
 	
 	fs:SetText(label);
 	fs:SetFontObject(font or tooltip:GetFont());
@@ -380,7 +381,7 @@ function iReputation:UpdateTooltip(tip)
 		
 		if( not isHeader or hasRep ) then
 			-- check for Paragon
-			local isParagon = false;
+			local isParagon, isParagonGlow = false, false;
 			if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
 				local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
 				
@@ -394,6 +395,7 @@ function iReputation:UpdateTooltip(tip)
 					barMax = threshold;
 					earned = currentValue;
 					isParagon = true;
+					isParagonGlow = hasRewardPending;
 				end
 			end
 			
@@ -422,7 +424,8 @@ function iReputation:UpdateTooltip(tip)
 				get_perc(earned, barMin, barMax, isFriendship),
 				standing,
 				hasBonusRepGain,
-				isParagon
+				isParagon,
+				isParagonGlow
 			}, cell_provider, 1, 0, 0);
 			
 			if( not isCapped ) then
