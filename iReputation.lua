@@ -190,21 +190,23 @@ function cell_prototype:InitializeCell()
 	self.bar = bar;
 	bar:SetWidth(100);
 	bar:SetHeight(14);
-	bar:SetPoint("LEFT", self, "LEFT", 1, 0);
+	bar:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");
+	bar:SetPoint("TOPLEFT", self, "TOPLEFT", 1, -1);
 	
 	local bg = self:CreateTexture(nil, "BACKGROUND");
 	self.bg = bg;
 	bg:SetWidth(102);
 	bg:SetHeight(16);
 	bg:SetColorTexture(0, 0, 0, 0.5);
-	bg:SetPoint("LEFT", self);
+	bg:SetPoint("TOPLEFT", self);
 	
 	local fs = self:CreateFontString(nil, "OVERLAY");
 	self.fs = fs;
 	fs:SetFontObject(_G.GameTooltipText);
 	local font, size = fs:GetFont();
 	fs:SetFont(font, size, "OUTLINE");
-	fs:SetAllPoints(bg);
+	fs:SetJustifyH("CENTER");
+	fs:SetTextColor(1, 1, 1);
 	
 	local bonusRep = self:CreateTexture(nil, "OVERLAY");
 	self.bonusRep = bonusRep;
@@ -213,8 +215,23 @@ function cell_prototype:InitializeCell()
 	bonusRep:SetTexture("Interface\\Common\\ReputationStar");
 	bonusRep:SetTexCoord(0.5, 1, 0.5, 1);
 	bonusRep:SetPoint("CENTER", bg, "LEFT", 2, 0);
+
+	local paragonBar = self:CreateTexture(nil, "ARTWORK", self);
+	self.paragonBar = paragonBar;
+	paragonBar:SetWidth(100);
+	paragonBar:SetHeight(5);
+	paragonBar:SetVertexColor(0.26, 0.42, 1);
+	paragonBar:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");
+	paragonBar:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", 1, 1);
+
+	local paragonBg = self:CreateTexture(nil, "BACKGROUND");
+	self.paragonBg = paragonBg;
+	paragonBg:SetWidth(102);
+	paragonBg:SetHeight(4);
+	paragonBg:SetColorTexture(0, 0, 0, 0.5);
+	paragonBg:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", 0, 0);
 	
-	local paragonBag = self:CreateTexture(nil, "ARTWORK");
+	local paragonBag = self:CreateTexture(nil, "OVERLAY");
 	self.paragonBag = paragonBag;
 	paragonBag:SetWidth(16);
 	paragonBag:SetHeight(16);
@@ -232,33 +249,36 @@ function cell_prototype:InitializeCell()
 end
 
 function cell_prototype:SetupCell(tip, data, justification, font, r, g, b)
-	local bar = self.bar;
-	local fs = self.fs;
 	local label, perc, standing, hasBonusRepGain, isParagon, isParagonGlow = unpack(data);
 	local c = FACTION_BAR_COLORS[standing] or {r=1, g=1, b=1};
 	
+	-- toggle display bonus rep gain star
 	self.bonusRep:SetShown(hasBonusRepGain);
 	
+	-- toggle display paragon widgets
+	self.paragonBar:SetShown(isParagon);
+	self.paragonBg:SetShown(isParagon);
+	self.paragonBag:SetShown(isParagon);
+	self.paragonGlow:SetShown(isParagon and isParagonGlow);
+	
+	-- basic widgets
+	self.bar:SetVertexColor(c.r, c.g, c.b);
+	self.bar:SetWidth(isParagon and 100 or perc);
+	self.bar:SetShown(isParagon and true or perc ~= 0);
+
+	self.fs:SetText(label);
+	self.fs:ClearAllPoints();
+
 	if( isParagon ) then
-		self.paragonBag:Show();
-		self.paragonGlow:SetShown(isParagonGlow);
+		self.fs:SetPoint("CENTER", self.bg, "CENTER", 0, -2);
 	else
-		self.paragonBag:Hide();
-		self.paragonGlow:Hide();
+		self.fs:SetAllPoints(self.bg);
 	end
+
+	-- paragon widgets
+	self.paragonBar:SetWidth(perc);
 	
-	bar:SetVertexColor(c.r, c.g, c.b);
-	bar:SetWidth(perc);
-	bar:SetTexture("Interface\\TargetingFrame\\UI-StatusBar");
-	bar:SetShown(perc ~= 0);
-	
-	fs:SetText(label);
-	fs:SetFontObject(font or tooltip:GetFont());
-	fs:SetJustifyH("CENTER");
-	fs:SetTextColor(1, 1, 1);
-	fs:Show();
-	
-	return self.bg:GetWidth() + 14, bar:GetHeight() + 2; -- add 14 to width in order to prevent Paragon image to be cut off by tooltip borders
+	return self.bg:GetWidth() + 14, self.bar:GetHeight() + (isParagon and self.paragonBg:GetHeight() + 2 or 0) + 2; -- add 14 to width in order to prevent Paragon image to be cut off by tooltip borders
 end
 
 function cell_prototype:ReleaseCell()
