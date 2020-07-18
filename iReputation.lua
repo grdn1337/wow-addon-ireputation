@@ -140,21 +140,21 @@ function iReputation:UpdateFactions()
 	
 	-- check for paragon
 	local isParagon = false;
-	if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
-		local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
+	-- if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
+	-- 	local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
 
-		-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
-		if( currentValue > threshold and threshold > 0 ) then
-			currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
-		end
+	-- 	-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
+	-- 	if( currentValue > threshold and threshold > 0 ) then
+	-- 		currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
+	-- 	end
 
-		if( not tooLowLevelForParagon ) then
-			barMin = 0;
-			barMax = threshold;
-			earned = currentValue;
-			isParagon = true;
-		end
-	end
+	-- 	if( not tooLowLevelForParagon ) then
+	-- 		barMin = 0;
+	-- 		barMax = threshold;
+	-- 		earned = currentValue;
+	-- 		isParagon = true;
+	-- 	end
+	-- end
 	
 	-- check for cap
 	local isCapped;
@@ -162,16 +162,16 @@ function iReputation:UpdateFactions()
 		isCapped = true;
 	end
 	
-	local friendID, friendRep, _, _, _, _, _, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
-	isFriendship = friendID ~= nil;
-	if( isFriendship ) then
-		if( nextFriendThreshold ) then
-			barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
-			isCapped = false;
-		else
-			isCapped = true;
-		end
-	end
+	-- local friendID, friendRep, _, _, _, _, _, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
+	-- isFriendship = friendID ~= nil;
+	-- if( isFriendship ) then
+	-- 	if( nextFriendThreshold ) then
+	-- 		barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
+	-- 		isCapped = false;
+	-- 	else
+	-- 		isCapped = true;
+	-- 	end
+	-- end
 	
 	--self.ldb.text = name and name..": "..get_label(earned, barMin, barMax, false) or AddonName;
 	self.ldb.text = not name and "" or isCapped and get_label(barMax, barMin, barMax, false) or get_label(earned, barMin, barMax, false);
@@ -359,7 +359,7 @@ function iReputation:UpdateTooltip(tip)
 	local line, isFriendship;
 	local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThresh, nextFriendThreshold;
 	
-	local lfgBonusFactionID = _G.GetLFGBonusFactionID();
+	--local lfgBonusFactionID = _G.GetLFGBonusFactionID();
 	
 	for i = 1, _G.GetNumFactions() do
 		-- 1     2     3           4       5       6         7          8               9         10           11      12         13       14         15               16
@@ -376,11 +376,11 @@ function iReputation:UpdateTooltip(tip)
 		end
 		
 		-- reformat faction name for LFG bonus
-		if( factionID == lfgBonusFactionID ) then
-			name = (BONUSREP_ACTIVE):format(name);
-		elseif( canBeLFGBonus ) then
-			name = (BONUSREP_POSSIBLE):format(name);
-		end
+		-- if( factionID == lfgBonusFactionID ) then
+		-- 	name = (BONUSREP_ACTIVE):format(name);
+		-- elseif( canBeLFGBonus ) then
+		-- 	name = (BONUSREP_POSSIBLE):format(name);
+		-- end
 		--
 		
 		if( isHeader ) then
@@ -402,22 +402,22 @@ function iReputation:UpdateTooltip(tip)
 		if( not isHeader or hasRep ) then
 			-- check for Paragon
 			local isParagon, isParagonGlow = false, false;
-			if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
-				local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
+			-- if( factionID and C_Reputation.IsFactionParagon(factionID) ) then
+			-- 	local currentValue, threshold, rewardQuestID, hasRewardPending, tooLowLevelForParagon = C_Reputation.GetFactionParagonInfo(factionID);
 				
-				-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
-				if( currentValue > threshold and threshold > 0 ) then
-					currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
-				end
+			-- 	-- we may farm paragon reputation more than once, so we must reduce the currentValue by threshold
+			-- 	if( currentValue > threshold and threshold > 0 ) then
+			-- 		currentValue = currentValue - (math.floor(currentValue / threshold, 0) * threshold);
+			-- 	end
 
-				if( not tooLowLevelForParagon ) then
-					barMin = 0;
-					barMax = threshold;
-					earned = currentValue;
-					isParagon = true;
-					isParagonGlow = hasRewardPending;
-				end
-			end
+			-- 	if( not tooLowLevelForParagon ) then
+			-- 		barMin = 0;
+			-- 		barMax = threshold;
+			-- 		earned = currentValue;
+			-- 		isParagon = true;
+			-- 		isParagonGlow = hasRewardPending;
+			-- 	end
+			-- end
 			
 			-- check for cap
 			local isCapped;
@@ -426,17 +426,17 @@ function iReputation:UpdateTooltip(tip)
 			end
 			
 			-- check for friendship
-			local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
-			isFriendship = friendID ~= nil;
-			if( isFriendship ) then
-				if( nextFriendThreshold ) then
-					barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
-					isCapped = false;
-				else
-					barMin, barMax, earned = 0, 1, 1;
-					isCapped = true;
-				end
-			end
+			-- local friendID, friendRep, friendMaxRep, friendName, friendText, friendTexture, friendTextLevel, friendThreshold, nextFriendThreshold  = _G.GetFriendshipReputation(factionID);
+			-- isFriendship = friendID ~= nil;
+			-- if( isFriendship ) then
+			-- 	if( nextFriendThreshold ) then
+			-- 		barMin, barMax, earned = friendThreshold, nextFriendThreshold, friendRep;
+			-- 		isCapped = false;
+			-- 	else
+			-- 		barMin, barMax, earned = 0, 1, 1;
+			-- 		isCapped = true;
+			-- 	end
+			-- end
 			
 			-- setup cell
 			tip:SetCell(line, 4, {

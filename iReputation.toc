@@ -1,6 +1,6 @@
-## Interface: 80200
+## Interface: 11305
 ## Title: i|cffffffaaReputation|r
-## Version: 8.2.0
+## Version: 1.13.3
 ## Notes: The reputation display for your broker bar!
 ## Author: grdn
 ## SavedVariables: iReputationDB
